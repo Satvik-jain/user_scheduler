@@ -147,6 +147,7 @@ def find_free_slots(agent_id, unavailability_data, start_time="09:00", end_time=
 @app.route("/get_free_slots", methods=["POST"])
 def get_free_slots():
     data = request.get_json()
+    print(data)
     property_id = data.get("property_id")
 
     if not property_id:

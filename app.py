@@ -19,7 +19,7 @@ def get_agent_user_id(property_id):
 
     url = f"{ZOHO_CRM_URL}/Listings/{property_id}"
     response = requests.get(url, headers=headers)
-
+    print(response.text)
     if response.status_code == 200:
         data = response.json().get("data", [])
         if data:
@@ -143,6 +143,48 @@ def find_free_slots(agent_id, unavailability_data, start_time="09:00", end_time=
     return free_slots
 
 
+@app.route("/mark_unavailable", methods=["POST"])
+def mark_unavailable():
+    data = request.get_json()
+    data = data.get("args")
+    
+    property_id = data.get("property_id")
+    start_time = data.get("start_time")  # Expecting ISO8601 format
+    end_time = data.get("end_time")  # Expecting ISO8601 format
+
+    if not property_id or not start_time or not end_time:
+        return jsonify({"error": "Property ID, start_time, and end_time are required"}), 400
+
+    agent_id = get_agent_user_id(property_id)
+    if not agent_id:
+        return jsonify({"error": "No agent assigned to this property"}), 404
+
+    headers = {
+        "Authorization": f"Zoho-oauthtoken {get_access_token()}",
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "users_unavailability": [
+            {
+                "comments": "Unavailable for property showing",
+                "from": start_time,
+                "to": end_time,
+                "user": {
+                    "id": agent_id
+                }
+            }
+        ]
+    }
+
+    response = requests.post(ZOHO_UNAVAILABILITY_URL, headers=headers, json=payload)
+
+    if response.status_code in [200, 201]:
+        return jsonify({"message": "Agent marked unavailable successfully"}), 200
+    else:
+        return jsonify({"error": f"Failed to mark agent unavailable: {response.status_code}, {response.text}"}), 500
+
+
 # Webhook to handle requests
 @app.route("/get_free_slots", methods=["POST"])
 def get_free_slots():
@@ -156,6 +198,7 @@ def get_free_slots():
 
     # User id
     agent_id = get_agent_user_id(property_id)
+    # print(agent_id)
     if not agent_id:
         return jsonify({"error": "No agent assigned to this property"}), 404
 
@@ -171,3 +214,11 @@ def get_free_slots():
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000)
+
+
+
+
+
+
+
+
